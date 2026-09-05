@@ -1,0 +1,17 @@
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "java.format.enabled": false,
+  "files.trimTrailingWhitespace": false,
+  "spotlessGradle.format.enable": true,
+  "spotlessGradle.diagnostics.enable": true,
+  "[java]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.defaultFormatter": "richardwillis.vscode-spotless-gradle",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.spotlessGradle": "always"
+    }
+  }
+}

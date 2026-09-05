@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "CustomerIngestEvent",
+  "namespace": "com.acme.customeringest.avro",
+  "doc": "Inbound Confluent Avro payload consumed from the ingest topic.",
+  "fields": [
+    { "name": "customerId", "type": "string" },
+    { "name": "phoneNumber", "type": "string" },
+    { "name": "address", "type": "com.acme.customeringest.avro.Address" }
+  ]
+}

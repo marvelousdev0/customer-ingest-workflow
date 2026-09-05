@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "richardwillis.vscode-spotless-gradle",
+    "vscjava.vscode-java-pack",
+    "vscjava.vscode-gradle"
+  ]
+}

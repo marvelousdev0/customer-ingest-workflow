@@ -1,0 +1,15 @@
+# Local-only overrides. Activate with SPRING_PROFILES_ACTIVE=local
+# after filling .env / environment placeholders. No real secrets here.
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/customer_ingest}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+logging:
+  level:
+    com.acme.customeringest: DEBUG

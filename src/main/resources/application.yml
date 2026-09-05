@@ -1,0 +1,109 @@
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:customer-ingest-workflow}
+  threads:
+    virtual:
+      enabled: ${VIRTUAL_THREADS_ENABLED:true}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    properties:
+      # Shared Confluent Schema Registry settings (consumer + producer inherit these).
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:8081}
+      basic.auth.credentials.source: ${SCHEMA_REGISTRY_AUTH_SOURCE:}
+      basic.auth.user.info: ${SCHEMA_REGISTRY_USER_INFO:}
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP:customer-ingest-workflow}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:earliest}
+      enable-auto-commit: false
+      # 25 messages per poll / per listener thread. With concurrency=2 and 2 pods,
+      # 4 threads share 4 partitions (one thread per partition).
+      max-poll-records: ${KAFKA_MAX_POLL_RECORDS:25}
+      # ErrorHandlingDeserializer delegates to Confluent specific Avro (Java POJOs).
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: io.confluent.kafka.serializers.KafkaAvroDeserializer
+        # Required: deserialize to generated SpecificRecord types, not GenericRecord.
+        specific.avro.reader: true
+        isolation.level: ${KAFKA_ISOLATION_LEVEL:read_committed}
+        # Fetch tuning: keep the poll tight around the 25-record batch.
+        fetch.min.bytes: ${KAFKA_FETCH_MIN_BYTES:1}
+        fetch.max.wait.ms: ${KAFKA_FETCH_MAX_WAIT_MS:50}
+        max.partition.fetch.bytes: ${KAFKA_MAX_PARTITION_FETCH_BYTES:1048576}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Serializes generated CustomerProcessedEvent SpecificRecords to Avro bytes.
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      acks: ${KAFKA_PRODUCER_ACKS:all}
+      properties:
+        auto.register.schemas: ${SCHEMA_REGISTRY_AUTO_REGISTER:true}
+        use.latest.version: ${SCHEMA_REGISTRY_USE_LATEST:false}
+    listener:
+      type: batch
+      ack-mode: manual
+      concurrency: ${KAFKA_LISTENER_CONCURRENCY:2}
+      observation-enabled: true
+    template:
+      observation-enabled: true
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/customer_ingest}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+      lettuce:
+        pool:
+          enabled: true
+          max-active: ${REDIS_POOL_MAX_ACTIVE:32}
+          max-idle: ${REDIS_POOL_MAX_IDLE:16}
+          min-idle: ${REDIS_POOL_MIN_IDLE:4}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS:health,info}
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
+    propagation:
+      consume: ${TRACING_PROPAGATION_CONSUME:W3C,B3}
+      produce: ${TRACING_PROPAGATION_PRODUCE:W3C,B3}
+  opentelemetry:
+    tracing:
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+
+app:
+  kafka:
+    inbound-topic: ${KAFKA_INBOUND_TOPIC:customer.ingest.in}
+    outbound-topic: ${KAFKA_OUTBOUND_TOPIC:customer.ingest.out}
+  redis:
+    # SET NX TTL for customerId lock. Prevents concurrent writers for the same customer.
+    lock-ttl: ${REDIS_LOCK_TTL:10s}
+    lock-max-attempts: ${REDIS_LOCK_MAX_ATTEMPTS:5}
+    lock-backoff: ${REDIS_LOCK_BACKOFF:25ms}
+    # TTL for idempotency keys after successful processing.
+    dedup-ttl: ${REDIS_DEDUP_TTL:7d}
+  mongo:
+    connection-pool-min: ${MONGO_POOL_MIN:10}
+    connection-pool-max: ${MONGO_POOL_MAX:50}
+
+logging:
+  level:
+    com.acme.customeringest: ${LOG_LEVEL_APP:INFO}
+    org.springframework.kafka: ${LOG_LEVEL_KAFKA:INFO}

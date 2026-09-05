@@ -1,0 +1,24 @@
+{
+  "type": "record",
+  "name": "CustomerProcessedEvent",
+  "namespace": "com.acme.customeringest.avro",
+  "doc": "Outbound Confluent Avro response published after successful processing.",
+  "fields": [
+    { "name": "customerId", "type": "string" },
+    { "name": "phoneNumber", "type": "string" },
+    { "name": "address", "type": "com.acme.customeringest.avro.Address" },
+    {
+      "name": "status",
+      "type": {
+        "type": "enum",
+        "name": "ProcessingStatus",
+        "symbols": ["PROCESSED", "SKIPPED_DUPLICATE", "FAILED"]
+      }
+    },
+    { "name": "processedAt", "type": "string", "doc": "ISO-8601 instant" },
+    { "name": "reason", "type": "string" },
+    { "name": "inboundTopic", "type": "string" },
+    { "name": "inboundPartition", "type": "int" },
+    { "name": "inboundOffset", "type": "long" }
+  ]
+}
