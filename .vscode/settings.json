@@ -1,5 +1,7 @@
 {
   "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.gradle.enabled": true,
+  "java.import.gradle.wrapper.enabled": true,
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
   "java.format.enabled": false,

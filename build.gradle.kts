@@ -28,8 +28,14 @@ repositories {
 val avroVersion = "1.12.2"
 val confluentVersion = "8.3.0"
 val testcontainersVersion = "2.0.5"
-
+val springCloudVersion = "2025.1.3"
 val avroTools = configurations.create("avroTools")
+
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
+    }
+}
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
@@ -39,6 +45,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.cloud:spring-cloud-starter-vault-config")
+    implementation("com.launchdarkly:launchdarkly-java-server-sdk:7.16.0")
 
     implementation("org.apache.commons:commons-pool2")
     implementation("io.opentelemetry:opentelemetry-extension-trace-propagators")

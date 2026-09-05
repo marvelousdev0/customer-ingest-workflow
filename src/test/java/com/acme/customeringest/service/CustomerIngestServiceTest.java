@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import com.acme.customeringest.avro.Address;
 import com.acme.customeringest.avro.CustomerIngestEvent;
+import com.acme.customeringest.featureflags.FeatureFlags;
 import com.acme.customeringest.mongo.CustomerDocument;
 import com.acme.customeringest.mongo.CustomerRepository;
 import com.acme.customeringest.producer.CustomerProcessedPublisher;
@@ -40,13 +41,15 @@ class CustomerIngestServiceTest {
 
   @Mock private CustomerProcessedPublisher publisher;
 
+  @Mock private FeatureFlags featureFlags;
+
   private CustomerIngestService service;
 
   @BeforeEach
   void setUp() {
     service =
         new CustomerIngestService(
-            duplicateMessageGuard, customerIdLock, customerRepository, publisher);
+            duplicateMessageGuard, customerIdLock, customerRepository, publisher, featureFlags);
   }
 
   @Test
@@ -71,6 +74,7 @@ class CustomerIngestServiceTest {
     when(customerRepository.findById("cust-2")).thenReturn(Optional.empty());
     when(customerRepository.save(any(CustomerDocument.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
+    when(featureFlags.isOutboundPublishEnabled("cust-2")).thenReturn(true);
 
     ProcessingOutcome outcome = service.process(record);
 
@@ -78,6 +82,25 @@ class CustomerIngestServiceTest {
     verify(customerRepository).save(any(CustomerDocument.class));
     verify(duplicateMessageGuard).markProcessed(INBOUND_TOPIC, 0, 21L, null);
     verify(publisher).publishProcessed(any(), eq(INBOUND_TOPIC), eq(0), eq(21L));
+  }
+
+  @Test
+  void successWritesMongoButSkipsPublishWhenFlagOff() {
+    ConsumerRecord<String, CustomerIngestEvent> record = record("cust-4", 33);
+    when(duplicateMessageGuard.alreadyProcessed(INBOUND_TOPIC, 0, 33L, null)).thenReturn(false);
+    when(customerIdLock.acquire("cust-4"))
+        .thenReturn(Optional.of(mock(CustomerIdLock.LockLease.class)));
+    when(customerRepository.findById("cust-4")).thenReturn(Optional.empty());
+    when(customerRepository.save(any(CustomerDocument.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(featureFlags.isOutboundPublishEnabled("cust-4")).thenReturn(false);
+
+    ProcessingOutcome outcome = service.process(record);
+
+    assertThat(outcome).isEqualTo(ProcessingOutcome.PROCESSED);
+    verify(customerRepository).save(any(CustomerDocument.class));
+    verify(duplicateMessageGuard).markProcessed(INBOUND_TOPIC, 0, 33L, null);
+    verify(publisher, never()).publishProcessed(any(), anyString(), anyInt(), anyLong());
   }
 
   @Test

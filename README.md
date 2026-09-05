@@ -18,8 +18,11 @@ High-throughput Spring Boot Kafka ingestion service: Confluent Avro in, Redis id
 | Micrometer Tracing (Boot BOM) | **1.7.1** |
 | OpenTelemetry (Boot BOM) | **1.62.0** |
 | Testcontainers (optional) | **2.0.5** |
+| Spring Cloud (Oakwood) | **2025.1.3** |
+| HashiCorp Vault (Spring Cloud Vault) | **5.0.2** (via Cloud BOM) |
+| LaunchDarkly Java Server SDK | **7.16.0** |
 
-Boot-managed libraries (Spring Kafka, Mongo, Lettuce, Micrometer, OTel) take their versions from the 4.1.1 BOM. Confluent and Avro are pinned explicitly because they are not in that BOM.
+Boot-managed libraries (Spring Kafka, Mongo, Lettuce, Micrometer, OTel) take their versions from the 4.1.1 BOM. Confluent, Avro, and LaunchDarkly are pinned explicitly because they are not in that BOM. Spring Cloud Vault is managed by the Spring Cloud BOM.
 
 ## How it works
 
@@ -66,16 +69,48 @@ PII: `customerId` is logged at INFO. Phone/address only at DEBUG.
 
 ## Configure
 
-All endpoints and secrets are `${ENV:default}` placeholders. Copy `.env.example` and export the variables (or inject them in k8s). Never commit real Confluent / Mongo / Redis credentials.
+### HashiCorp Vault
 
-Important knobs:
+Deployed environments load Kafka / Schema Registry / Mongo / Redis credentials from **HashiCorp Vault** KV via Spring Cloud Vault (`spring.config.import=vault://`).
 
-- `KAFKA_BOOTSTRAP_SERVERS`, `SCHEMA_REGISTRY_URL`, `SCHEMA_REGISTRY_USER_INFO`
+| Setting | Placeholder default | Notes |
+| --- | --- | --- |
+| `VAULT_URI` | `http://127.0.0.1:8200` | Vault HTTP API address |
+| `VAULT_AUTHENTICATION` | `TOKEN` | Switch later to `KUBERNETES` / `APPROLE` as needed |
+| `VAULT_TOKEN` | `00000000-0000-0000-0000-000000000000` | Dev/placeholder token only |
+| `VAULT_KV_BACKEND` | `secret` | KV mount path |
+| `VAULT_KV_DEFAULT_CONTEXT` | `customer-ingest-workflow` | Path under the mount |
+| `VAULT_CONFIG_IMPORT` | `optional:vault://` | Use `vault://` + `VAULT_FAIL_FAST=true` in prod |
+
+Store flat Spring property keys at `secret/data/customer-ingest-workflow` (KV v2). See `vault/secrets.example.json`. Vault properties override `application.yml` when present.
+
+The `local` profile sets `spring.cloud.vault.enabled=false` so `bootRun` works without a Vault server; use `.env` fallbacks instead.
+
+### LaunchDarkly feature flags
+
+Feature flags are evaluated via the LaunchDarkly Java server SDK. The SDK key is a secret (`app.launchdarkly.sdk-key` in Vault, or `LAUNCHDARKLY_SDK_KEY`). Placeholder / local runs stay **offline** and return code defaults.
+
+| Flag key | Default | Behavior |
+| --- | --- | --- |
+| `customer-ingest.outbound-publish` | `true` | When false, Mongo write + dedup still happen; Kafka outbound publish is skipped |
+
+Use `FeatureFlags` in code:
+
+```java
+if (featureFlags.isOutboundPublishEnabled(customerId)) { ... }
+if (featureFlags.isEnabledForCustomer("my-flag", customerId, false)) { ... }
+```
+
+Create the flag in the LaunchDarkly dashboard with context kind `customer` (attribute `customerId`) for targeting.
+
+### Local / non-secret knobs
+
+Copy `.env.example` and export the variables. Never commit real Confluent / Mongo / Redis / Vault credentials.
+
 - `KAFKA_INBOUND_TOPIC`, `KAFKA_OUTBOUND_TOPIC`, `KAFKA_CONSUMER_GROUP`
 - `KAFKA_LISTENER_CONCURRENCY` (default `2`), `KAFKA_MAX_POLL_RECORDS` (default `25`)
-- `MONGODB_URI`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`
 - `REDIS_LOCK_TTL`, `REDIS_DEDUP_TTL`
-- `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` (optional collector)
+- Local-only fallbacks: `KAFKA_BOOTSTRAP_SERVERS`, `SCHEMA_REGISTRY_URL`, `MONGODB_URI`, `REDIS_*`
 
 ## Run
 

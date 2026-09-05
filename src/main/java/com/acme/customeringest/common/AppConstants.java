@@ -70,4 +70,21 @@ public final class AppConstants {
       throw new AssertionError("Utility class");
     }
   }
+
+  public static final class FeatureFlags {
+
+    /** Kill switch / rollout for Kafka outbound PROCESSED publish after Mongo write. */
+    public static final String OUTBOUND_PUBLISH = "customer-ingest.outbound-publish";
+
+    public static final boolean DEFAULT_OUTBOUND_PUBLISH = true;
+    public static final String CONTEXT_KIND_CUSTOMER = "customer";
+    public static final String CONTEXT_KIND_APPLICATION = "application";
+    public static final String ATTR_CUSTOMER_ID = "customerId";
+    public static final Duration DEFAULT_START_WAIT = Duration.ofSeconds(5);
+    public static final String PLACEHOLDER_SDK_KEY = "sdk-placeholder-key";
+
+    private FeatureFlags() {
+      throw new AssertionError("Utility class");
+    }
+  }
 }

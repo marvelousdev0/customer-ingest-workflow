@@ -4,7 +4,29 @@ spring:
   threads:
     virtual:
       enabled: ${VIRTUAL_THREADS_ENABLED:true}
+  # HashiCorp Vault (via Spring Cloud Vault) is the source of truth for
+  # connection / credential properties. optional: skips when unreachable (local).
+  # Use vault:// + VAULT_FAIL_FAST=true in deployed environments.
+  config:
+    import: ${VAULT_CONFIG_IMPORT:optional:vault://}
+  cloud:
+    vault:
+      enabled: ${VAULT_ENABLED:true}
+      # Connection placeholders — replace with real HashiCorp Vault endpoint / auth.
+      uri: ${VAULT_URI:http://127.0.0.1:8200}
+      authentication: ${VAULT_AUTHENTICATION:TOKEN}
+      token: ${VAULT_TOKEN:00000000-0000-0000-0000-000000000000}
+      fail-fast: ${VAULT_FAIL_FAST:false}
+      connection-timeout: ${VAULT_CONNECTION_TIMEOUT:5000}
+      read-timeout: ${VAULT_READ_TIMEOUT:15000}
+      kv:
+        enabled: true
+        backend: ${VAULT_KV_BACKEND:secret}
+        default-context: ${VAULT_KV_DEFAULT_CONTEXT:customer-ingest-workflow}
+        application-name: ${VAULT_KV_APPLICATION_NAME:${spring.application.name}}
+        profile-separator: "/"
   kafka:
+    # Prefer Vault KV keys with the same Spring property names; env vars are fallbacks.
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     properties:
       # Shared Confluent Schema Registry settings (consumer + producer inherit these).
@@ -76,6 +98,9 @@ management:
     health:
       probes:
         enabled: true
+  health:
+    vault:
+      enabled: ${VAULT_HEALTH_ENABLED:${VAULT_ENABLED:true}}
   tracing:
     sampling:
       probability: ${TRACING_SAMPLE_PROBABILITY:1.0}
@@ -102,8 +127,16 @@ app:
   mongo:
     connection-pool-min: ${MONGO_POOL_MIN:10}
     connection-pool-max: ${MONGO_POOL_MAX:50}
+  launchdarkly:
+    # SDK key should come from Vault (app.launchdarkly.sdk-key). Placeholder stays offline.
+    enabled: ${LAUNCHDARKLY_ENABLED:true}
+    sdk-key: ${LAUNCHDARKLY_SDK_KEY:sdk-placeholder-key}
+    offline: ${LAUNCHDARKLY_OFFLINE:false}
+    start-wait: ${LAUNCHDARKLY_START_WAIT:5s}
 
 logging:
   level:
     com.acme.customeringest: ${LOG_LEVEL_APP:INFO}
     org.springframework.kafka: ${LOG_LEVEL_KAFKA:INFO}
+    org.springframework.cloud.vault: ${LOG_LEVEL_VAULT:INFO}
+    com.launchdarkly: ${LOG_LEVEL_LAUNCHDARKLY:INFO}
