@@ -45,10 +45,10 @@ public class CustomerProcessedPublisher {
             .setInboundOffset(inboundOffset)
             .build();
 
-    ProducerRecord<String, CustomerProcessedEvent> record =
+    ProducerRecord<String, CustomerProcessedEvent> producerRecord =
         new ProducerRecord<>(outboundTopic, ingest.getCustomerId(), event);
-    tracing.inject(record.headers());
-    kafkaTemplate.send(record);
+    tracing.inject(producerRecord.headers());
+    kafkaTemplate.send(producerRecord);
     LOG.info(
         "Published PROCESSED event customerId={} topic={} inbound={}-{}-{}",
         ingest.getCustomerId(),

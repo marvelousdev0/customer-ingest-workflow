@@ -278,13 +278,17 @@ jobs:
       contents: read
       pull-requests: write
     env:
-      ALLOW_PAID_MODELS: ${{ vars.ALLOW_PAID_MODELS || 'false' }}
-      AI_REVIEW_MODEL_ORDER: ${{ vars.AI_REVIEW_MODEL_ORDER || '' }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || '' }}
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY || '' }}
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY || '' }}
-      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || '' }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || '' }}
+      # Optional knobs — literals avoid editor "Context access might be invalid"
+      # when repository Variables/Secrets are not created yet.
+      ALLOW_PAID_MODELS: 'false'
+      AI_REVIEW_MODEL_ORDER: ''
+      # Leave empty until the matching repository secret exists, then map it with
+      # the secrets context (see docs/pr-intelligence.md).
+      GEMINI_API_KEY: ''
+      OPENROUTER_API_KEY: ''
+      GROQ_API_KEY: ''
+      ANTHROPIC_API_KEY: ''
+      OPENAI_API_KEY: ''
 
     steps:
       - uses: actions/checkout@v5
@@ -527,7 +531,7 @@ jobs:
           comment-summary-in-pr: always
 
       - name: OSV vulnerability scan
-        uses: google/osv-scanner-action@v2
+        uses: google/osv-scanner-action/osv-scanner-action@v2.5.1
         with:
           scan-args: |-
             --recursive

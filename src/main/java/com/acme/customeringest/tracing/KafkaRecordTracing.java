@@ -36,9 +36,9 @@ public class KafkaRecordTracing {
             B3Propagator.injectingSingleHeader());
   }
 
-  public TraceScope open(ConsumerRecord<?, ?> record) {
+  public TraceScope open(ConsumerRecord<?, ?> consumerRecord) {
     Context extracted =
-        propagator.extract(Context.current(), record.headers(), KafkaHeaderTextMap.GETTER);
+        propagator.extract(Context.current(), consumerRecord.headers(), KafkaHeaderTextMap.GETTER);
     Scope otelScope = extracted.makeCurrent();
     Span span =
         tracer
@@ -47,13 +47,18 @@ public class KafkaRecordTracing {
             .tag(
                 AppConstants.Tracing.TAG_MESSAGING_SYSTEM,
                 AppConstants.Tracing.MESSAGING_SYSTEM_KAFKA)
-            .tag(AppConstants.Tracing.TAG_MESSAGING_DESTINATION, record.topic())
-            .tag(AppConstants.Tracing.TAG_MESSAGING_PARTITION, String.valueOf(record.partition()))
-            .tag(AppConstants.Tracing.TAG_MESSAGING_OFFSET, String.valueOf(record.offset()))
+            .tag(AppConstants.Tracing.TAG_MESSAGING_DESTINATION, consumerRecord.topic())
+            .tag(
+                AppConstants.Tracing.TAG_MESSAGING_PARTITION,
+                String.valueOf(consumerRecord.partition()))
+            .tag(AppConstants.Tracing.TAG_MESSAGING_OFFSET, String.valueOf(consumerRecord.offset()))
             .start();
     Tracer.SpanInScope micrometerScope = tracer.withSpan(span);
     LOG.debug(
-        "Opened ingest span for {}-{}-{}", record.topic(), record.partition(), record.offset());
+        "Opened ingest span for {}-{}-{}",
+        consumerRecord.topic(),
+        consumerRecord.partition(),
+        consumerRecord.offset());
     return new TraceScope(span, micrometerScope, otelScope);
   }
 

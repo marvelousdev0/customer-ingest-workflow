@@ -5,7 +5,6 @@ import com.acme.customeringest.common.AppConstants;
 import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.boot.kafka.autoconfigure.KafkaProperties;
@@ -49,10 +48,12 @@ public class KafkaConsumerConfig {
         new ConcurrentKafkaListenerContainerFactory<>();
     factory.setConsumerFactory(consumerFactory);
     factory.setBatchListener(true);
-    factory.setConcurrency(
-        Objects.requireNonNullElse(
-            kafkaProperties.getListener().getConcurrency(),
-            AppConstants.Kafka.DEFAULT_LISTENER_CONCURRENCY));
+    Integer configuredConcurrency = kafkaProperties.getListener().getConcurrency();
+    int concurrency =
+        configuredConcurrency != null
+            ? configuredConcurrency
+            : AppConstants.Kafka.DEFAULT_LISTENER_CONCURRENCY;
+    factory.setConcurrency(concurrency);
     factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
     factory.getContainerProperties().setObservationEnabled(true);
     return factory;

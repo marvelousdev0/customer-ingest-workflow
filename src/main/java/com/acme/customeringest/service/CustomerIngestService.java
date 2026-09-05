@@ -44,47 +44,57 @@ public class CustomerIngestService {
     this.featureFlags = featureFlags;
   }
 
-  public ProcessingOutcome process(ConsumerRecord<String, CustomerIngestEvent> record) {
-    CustomerIngestEvent event = record.value();
+  public ProcessingOutcome process(ConsumerRecord<String, CustomerIngestEvent> consumerRecord) {
+    CustomerIngestEvent event = consumerRecord.value();
     if (event == null) {
       LOG.warn(
-          "Skipping null payload {}-{}-{}", record.topic(), record.partition(), record.offset());
+          "Skipping null payload {}-{}-{}",
+          consumerRecord.topic(),
+          consumerRecord.partition(),
+          consumerRecord.offset());
       return ProcessingOutcome.FAILED;
     }
     validate(event);
 
-    String idempotencyKey = header(record, AppConstants.Redis.IDEMPOTENCY_HEADER);
+    String idempotencyKey = header(consumerRecord, AppConstants.Redis.IDEMPOTENCY_HEADER);
     LOG.info(
         "Processing ingest customerId={} {}-{}-{}",
         event.getCustomerId(),
-        record.topic(),
-        record.partition(),
-        record.offset());
+        consumerRecord.topic(),
+        consumerRecord.partition(),
+        consumerRecord.offset());
     logPii(event);
 
     if (duplicateMessageGuard.alreadyProcessed(
-        record.topic(), record.partition(), record.offset(), idempotencyKey)) {
+        consumerRecord.topic(),
+        consumerRecord.partition(),
+        consumerRecord.offset(),
+        idempotencyKey)) {
       return ProcessingOutcome.DUPLICATE_SKIPPED;
     }
 
-    return processWithLock(event, record, idempotencyKey);
+    return processWithLock(event, consumerRecord, idempotencyKey);
   }
 
   private ProcessingOutcome processWithLock(
       CustomerIngestEvent event,
-      ConsumerRecord<String, CustomerIngestEvent> record,
+      ConsumerRecord<String, CustomerIngestEvent> consumerRecord,
       String idempotencyKey) {
     Optional<CustomerIdLock.LockLease> maybeLease = customerIdLock.acquire(event.getCustomerId());
     if (maybeLease.isEmpty()) {
       return ProcessingOutcome.LOCK_NOT_ACQUIRED;
     }
 
-    try (CustomerIdLock.LockLease ignored = maybeLease.orElseThrow()) {
-      persist(event, record);
+    try (var _ = maybeLease.orElseThrow()) {
+      persist(event, consumerRecord);
       duplicateMessageGuard.markProcessed(
-          record.topic(), record.partition(), record.offset(), idempotencyKey);
+          consumerRecord.topic(),
+          consumerRecord.partition(),
+          consumerRecord.offset(),
+          idempotencyKey);
       if (featureFlags.isOutboundPublishEnabled(event.getCustomerId())) {
-        publisher.publishProcessed(event, record.topic(), record.partition(), record.offset());
+        publisher.publishProcessed(
+            event, consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset());
       } else {
         LOG.info(
             "Outbound publish disabled by feature flag customerId={} flag={}",
@@ -94,24 +104,24 @@ public class CustomerIngestService {
       LOG.info(
           "Processed customerId={} {}-{}-{}",
           event.getCustomerId(),
-          record.topic(),
-          record.partition(),
-          record.offset());
+          consumerRecord.topic(),
+          consumerRecord.partition(),
+          consumerRecord.offset());
       return ProcessingOutcome.PROCESSED;
     } catch (RuntimeException ex) {
       LOG.warn(
           "Failed processing customerId={} {}-{}-{}: {}",
           event.getCustomerId(),
-          record.topic(),
-          record.partition(),
-          record.offset(),
+          consumerRecord.topic(),
+          consumerRecord.partition(),
+          consumerRecord.offset(),
           ex.toString());
       return ProcessingOutcome.FAILED;
     }
   }
 
   private void persist(
-      CustomerIngestEvent event, ConsumerRecord<String, CustomerIngestEvent> record) {
+      CustomerIngestEvent event, ConsumerRecord<String, CustomerIngestEvent> consumerRecord) {
     Address address = event.getAddress();
     CustomerDocument document =
         customerRepository.findById(event.getCustomerId()).orElseGet(CustomerDocument::new);
@@ -121,9 +131,9 @@ public class CustomerIngestService {
         new AddressEmbed(
             address.getStreet(), address.getCity(), address.getState(), address.getZip()));
     document.setUpdatedAt(Instant.now());
-    document.setLastInboundTopic(record.topic());
-    document.setLastInboundPartition(record.partition());
-    document.setLastInboundOffset(record.offset());
+    document.setLastInboundTopic(consumerRecord.topic());
+    document.setLastInboundPartition(consumerRecord.partition());
+    document.setLastInboundOffset(consumerRecord.offset());
     customerRepository.save(document);
     LOG.info("Wrote Mongo customer document customerId={}", event.getCustomerId());
   }
@@ -149,8 +159,8 @@ public class CustomerIngestService {
         address.getZip());
   }
 
-  private static String header(ConsumerRecord<?, ?> record, String name) {
-    Header header = record.headers().lastHeader(name);
+  private static String header(ConsumerRecord<?, ?> consumerRecord, String name) {
+    Header header = consumerRecord.headers().lastHeader(name);
     if (header == null || header.value() == null) {
       return null;
     }
