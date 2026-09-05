@@ -3,6 +3,7 @@ package com.acme.customeringest.service;
 import com.acme.customeringest.avro.Address;
 import com.acme.customeringest.avro.CustomerIngestEvent;
 import com.acme.customeringest.common.AppConstants;
+import com.acme.customeringest.featureflags.FeatureFlags;
 import com.acme.customeringest.mongo.AddressEmbed;
 import com.acme.customeringest.mongo.CustomerDocument;
 import com.acme.customeringest.mongo.CustomerRepository;
@@ -28,16 +29,19 @@ public class CustomerIngestService {
   private final CustomerIdLock customerIdLock;
   private final CustomerRepository customerRepository;
   private final CustomerProcessedPublisher publisher;
+  private final FeatureFlags featureFlags;
 
   public CustomerIngestService(
       DuplicateMessageGuard duplicateMessageGuard,
       CustomerIdLock customerIdLock,
       CustomerRepository customerRepository,
-      CustomerProcessedPublisher publisher) {
+      CustomerProcessedPublisher publisher,
+      FeatureFlags featureFlags) {
     this.duplicateMessageGuard = duplicateMessageGuard;
     this.customerIdLock = customerIdLock;
     this.customerRepository = customerRepository;
     this.publisher = publisher;
+    this.featureFlags = featureFlags;
   }
 
   public ProcessingOutcome process(ConsumerRecord<String, CustomerIngestEvent> record) {
@@ -79,7 +83,14 @@ public class CustomerIngestService {
       persist(event, record);
       duplicateMessageGuard.markProcessed(
           record.topic(), record.partition(), record.offset(), idempotencyKey);
-      publisher.publishProcessed(event, record.topic(), record.partition(), record.offset());
+      if (featureFlags.isOutboundPublishEnabled(event.getCustomerId())) {
+        publisher.publishProcessed(event, record.topic(), record.partition(), record.offset());
+      } else {
+        LOG.info(
+            "Outbound publish disabled by feature flag customerId={} flag={}",
+            event.getCustomerId(),
+            AppConstants.FeatureFlags.OUTBOUND_PUBLISH);
+      }
       LOG.info(
           "Processed customerId={} {}-{}-{}",
           event.getCustomerId(),

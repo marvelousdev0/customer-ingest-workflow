@@ -1,6 +1,12 @@
 # Local-only overrides. Activate with SPRING_PROFILES_ACTIVE=local
 # after filling .env / environment placeholders. No real secrets here.
+# Vault is disabled so bootRun works without a Vault server; use env defaults.
 spring:
+  cloud:
+    vault:
+      enabled: false
+  config:
+    import: "optional:vault://"
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   data:
@@ -9,6 +15,17 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+
+management:
+  health:
+    vault:
+      enabled: false
+
+app:
+  launchdarkly:
+    # Offline: no network calls; boolVariation returns the code default.
+    offline: true
+    sdk-key: sdk-placeholder-key
 
 logging:
   level:

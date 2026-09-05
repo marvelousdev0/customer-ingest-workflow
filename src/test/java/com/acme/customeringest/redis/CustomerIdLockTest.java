@@ -133,6 +133,7 @@ class CustomerIdLockTest {
             LOCK_MAX_ATTEMPTS,
             Duration.ofMillis(1),
             AppConstants.Redis.DEFAULT_DEDUP_TTL),
-        new AppProperties.Mongo(1, 2));
+        new AppProperties.Mongo(1, 2),
+        null);
   }
 }

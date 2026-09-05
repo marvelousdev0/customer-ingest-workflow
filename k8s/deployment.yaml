@@ -26,44 +26,43 @@ spec:
               value: "8080"
             - name: VIRTUAL_THREADS_ENABLED
               value: "true"
-            - name: KAFKA_BOOTSTRAP_SERVERS
-              value: ${KAFKA_BOOTSTRAP_SERVERS}
-            - name: KAFKA_SECURITY_PROTOCOL
-              value: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
-            - name: KAFKA_SASL_MECHANISM
-              value: ${KAFKA_SASL_MECHANISM}
-            - name: KAFKA_SASL_JAAS_CONFIG
-              value: ${KAFKA_SASL_JAAS_CONFIG}
+            # HashiCorp Vault — connection placeholders only.
+            # Kafka / Mongo / Redis / Schema Registry credentials are read from Vault KV.
+            - name: VAULT_ENABLED
+              value: "true"
+            - name: VAULT_URI
+              value: ${VAULT_URI:http://vault.vault.svc:8200}
+            - name: VAULT_AUTHENTICATION
+              value: ${VAULT_AUTHENTICATION:TOKEN}
+            - name: VAULT_TOKEN
+              value: ${VAULT_TOKEN:00000000-0000-0000-0000-000000000000}
+            - name: VAULT_CONFIG_IMPORT
+              value: ${VAULT_CONFIG_IMPORT:vault://}
+            - name: VAULT_FAIL_FAST
+              value: ${VAULT_FAIL_FAST:true}
+            - name: VAULT_KV_BACKEND
+              value: ${VAULT_KV_BACKEND:secret}
+            - name: VAULT_KV_DEFAULT_CONTEXT
+              value: ${VAULT_KV_DEFAULT_CONTEXT:customer-ingest-workflow}
+            # LaunchDarkly — SDK key is expected from Vault (app.launchdarkly.sdk-key).
+            # These are connection/behavior placeholders only.
+            - name: LAUNCHDARKLY_ENABLED
+              value: ${LAUNCHDARKLY_ENABLED:true}
+            - name: LAUNCHDARKLY_OFFLINE
+              value: ${LAUNCHDARKLY_OFFLINE:false}
+            - name: LAUNCHDARKLY_START_WAIT
+              value: ${LAUNCHDARKLY_START_WAIT:5s}
+            # Non-secret tuning (not stored in Vault).
             - name: KAFKA_CONSUMER_GROUP
               value: ${KAFKA_CONSUMER_GROUP:customer-ingest-workflow}
-            - name: KAFKA_INBOUND_TOPIC
-              value: ${KAFKA_INBOUND_TOPIC:customer.ingest.in}
-            - name: KAFKA_OUTBOUND_TOPIC
-              value: ${KAFKA_OUTBOUND_TOPIC:customer.ingest.out}
             - name: KAFKA_LISTENER_CONCURRENCY
               value: "2"
             - name: KAFKA_MAX_POLL_RECORDS
               value: "25"
-            - name: SCHEMA_REGISTRY_URL
-              value: ${SCHEMA_REGISTRY_URL}
-            - name: SCHEMA_REGISTRY_AUTH_SOURCE
-              value: ${SCHEMA_REGISTRY_AUTH_SOURCE}
-            - name: SCHEMA_REGISTRY_USER_INFO
-              value: ${SCHEMA_REGISTRY_USER_INFO}
-            - name: MONGODB_URI
-              value: ${MONGODB_URI}
-            - name: REDIS_HOST
-              value: ${REDIS_HOST}
-            - name: REDIS_PORT
-              value: ${REDIS_PORT:6379}
-            - name: REDIS_PASSWORD
-              value: ${REDIS_PASSWORD}
             - name: REDIS_LOCK_TTL
               value: ${REDIS_LOCK_TTL:10s}
             - name: REDIS_DEDUP_TTL
               value: ${REDIS_DEDUP_TTL:7d}
-            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-              value: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT}
           readinessProbe:
             httpGet:
               path: /actuator/health/readiness
