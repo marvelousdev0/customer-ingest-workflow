@@ -2,7 +2,6 @@ package com.acme.customeringest.redis;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -45,10 +44,7 @@ class DuplicateMessageGuardTest {
     assertThat(guard.alreadyProcessed(TOPIC, 0, 7, null)).isTrue();
 
     verify(valueOps)
-        .set(
-            eq(offsetKey),
-            eq(AppConstants.Redis.DEDUP_MARKER),
-            eq(AppConstants.Redis.DEFAULT_DEDUP_TTL));
+        .set(offsetKey, AppConstants.Redis.DEDUP_MARKER, AppConstants.Redis.DEFAULT_DEDUP_TTL);
   }
 
   @Test

@@ -54,10 +54,10 @@ class CustomerIngestServiceTest {
 
   @Test
   void duplicateSkipsMongoAndOutboundPublish() {
-    ConsumerRecord<String, CustomerIngestEvent> record = record("cust-1", 15);
+    ConsumerRecord<String, CustomerIngestEvent> consumerRecord = ingestRecord("cust-1", 15);
     when(duplicateMessageGuard.alreadyProcessed(INBOUND_TOPIC, 0, 15L, null)).thenReturn(true);
 
-    ProcessingOutcome outcome = service.process(record);
+    ProcessingOutcome outcome = service.process(consumerRecord);
 
     assertThat(outcome).isEqualTo(ProcessingOutcome.DUPLICATE_SKIPPED);
     verify(customerRepository, never()).save(any());
@@ -67,7 +67,7 @@ class CustomerIngestServiceTest {
 
   @Test
   void successWritesMongoAndPublishes() {
-    ConsumerRecord<String, CustomerIngestEvent> record = record("cust-2", 21);
+    ConsumerRecord<String, CustomerIngestEvent> consumerRecord = ingestRecord("cust-2", 21);
     when(duplicateMessageGuard.alreadyProcessed(INBOUND_TOPIC, 0, 21L, null)).thenReturn(false);
     when(customerIdLock.acquire("cust-2"))
         .thenReturn(Optional.of(mock(CustomerIdLock.LockLease.class)));
@@ -76,7 +76,7 @@ class CustomerIngestServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
     when(featureFlags.isOutboundPublishEnabled("cust-2")).thenReturn(true);
 
-    ProcessingOutcome outcome = service.process(record);
+    ProcessingOutcome outcome = service.process(consumerRecord);
 
     assertThat(outcome).isEqualTo(ProcessingOutcome.PROCESSED);
     verify(customerRepository).save(any(CustomerDocument.class));
@@ -86,7 +86,7 @@ class CustomerIngestServiceTest {
 
   @Test
   void successWritesMongoButSkipsPublishWhenFlagOff() {
-    ConsumerRecord<String, CustomerIngestEvent> record = record("cust-4", 33);
+    ConsumerRecord<String, CustomerIngestEvent> consumerRecord = ingestRecord("cust-4", 33);
     when(duplicateMessageGuard.alreadyProcessed(INBOUND_TOPIC, 0, 33L, null)).thenReturn(false);
     when(customerIdLock.acquire("cust-4"))
         .thenReturn(Optional.of(mock(CustomerIdLock.LockLease.class)));
@@ -95,7 +95,7 @@ class CustomerIngestServiceTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
     when(featureFlags.isOutboundPublishEnabled("cust-4")).thenReturn(false);
 
-    ProcessingOutcome outcome = service.process(record);
+    ProcessingOutcome outcome = service.process(consumerRecord);
 
     assertThat(outcome).isEqualTo(ProcessingOutcome.PROCESSED);
     verify(customerRepository).save(any(CustomerDocument.class));
@@ -117,21 +117,21 @@ class CustomerIngestServiceTest {
                     .setZip("78701")
                     .build())
             .build();
-    ConsumerRecord<String, CustomerIngestEvent> record =
+    ConsumerRecord<String, CustomerIngestEvent> consumerRecord =
         new ConsumerRecord<>(INBOUND_TOPIC, 0, 1L, "cust", event);
 
-    assertThrows(IllegalArgumentException.class, () -> service.process(record));
+    assertThrows(IllegalArgumentException.class, () -> service.process(consumerRecord));
     verify(customerRepository, never()).save(any());
     verify(publisher, never()).publishProcessed(any(), anyString(), anyInt(), anyLong());
   }
 
   @Test
   void lockFailureDoesNotWriteOrPublish() {
-    ConsumerRecord<String, CustomerIngestEvent> record = record("cust-3", 9);
+    ConsumerRecord<String, CustomerIngestEvent> consumerRecord = ingestRecord("cust-3", 9);
     when(duplicateMessageGuard.alreadyProcessed(INBOUND_TOPIC, 0, 9L, null)).thenReturn(false);
     when(customerIdLock.acquire("cust-3")).thenReturn(Optional.empty());
 
-    ProcessingOutcome outcome = service.process(record);
+    ProcessingOutcome outcome = service.process(consumerRecord);
 
     assertThat(outcome).isEqualTo(ProcessingOutcome.LOCK_NOT_ACQUIRED);
     verify(customerRepository, never()).save(any());
@@ -139,7 +139,7 @@ class CustomerIngestServiceTest {
     verify(duplicateMessageGuard, never()).markProcessed(anyString(), anyInt(), anyLong(), any());
   }
 
-  private static ConsumerRecord<String, CustomerIngestEvent> record(
+  private static ConsumerRecord<String, CustomerIngestEvent> ingestRecord(
       String customerId, long offset) {
     CustomerIngestEvent event =
         CustomerIngestEvent.newBuilder()

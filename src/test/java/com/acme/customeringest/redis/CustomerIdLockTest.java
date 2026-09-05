@@ -112,7 +112,7 @@ class CustomerIdLockTest {
                             inCriticalSection.decrementAndGet();
                           }
                         });
-              } catch (InterruptedException e) {
+              } catch (InterruptedException _) {
                 Thread.currentThread().interrupt();
               } finally {
                 done.countDown();

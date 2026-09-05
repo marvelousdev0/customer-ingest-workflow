@@ -37,8 +37,8 @@ public class CustomerIngestBatchListener {
     LOG.info("Consumed batch size={}", records.size());
     Integer firstUnacked = null;
     for (int i = 0; i < records.size(); i++) {
-      ConsumerRecord<String, CustomerIngestEvent> record = records.get(i);
-      ProcessingOutcome outcome = processRecord(record);
+      ConsumerRecord<String, CustomerIngestEvent> consumerRecord = records.get(i);
+      ProcessingOutcome outcome = processRecord(consumerRecord);
       if (needsRetry(outcome) && firstUnacked == null) {
         firstUnacked = i;
       }
@@ -55,15 +55,16 @@ public class CustomerIngestBatchListener {
     }
   }
 
-  private ProcessingOutcome processRecord(ConsumerRecord<String, CustomerIngestEvent> record) {
-    try (KafkaRecordTracing.TraceScope ignored = tracing.open(record)) {
-      return ingestService.process(record);
+  private ProcessingOutcome processRecord(
+      ConsumerRecord<String, CustomerIngestEvent> consumerRecord) {
+    try (var _ = tracing.open(consumerRecord)) {
+      return ingestService.process(consumerRecord);
     } catch (RuntimeException ex) {
       LOG.warn(
           "Unhandled listener error {}-{}-{}: {}",
-          record.topic(),
-          record.partition(),
-          record.offset(),
+          consumerRecord.topic(),
+          consumerRecord.partition(),
+          consumerRecord.offset(),
           ex.toString());
       return ProcessingOutcome.FAILED;
     }
